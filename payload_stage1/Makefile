@@ -32,10 +32,11 @@ INCLUDES	:=	source
 ARCH	:=	-mthumb -mthumb-interwork
 
 CFLAGS	:=	-g -Wall -O2\
-		-flto -march=armv5te -mtune=arm946e-s\
-		-ffast-math -Wno-main -std=c99 $(ARCH)
+			-flto -march=armv5te -mtune=arm946e-s\
+			-ffast-math -Wno-main -std=c99\
+			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -pedantic -Wall -Wextra -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused
+CFLAGS	+=	$(INCLUDE) -DARM9
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 

@@ -29,7 +29,4 @@ void i2cStop(u8 bus_id, u8 arg0);
 bool i2cSelectDevice(u8 bus_id, u8 dev_reg);
 bool i2cSelectRegister(u8 bus_id, u8 reg);
 
-u8 i2cReadRegister(u8 dev_id, u8 reg);
 bool i2cWriteRegister(u8 dev_id, u8 reg, u8 data);
-
-bool i2cReadRegisterBuffer(unsigned int dev_id, int reg, u8* buffer, size_t buf_size);

@@ -7,7 +7,7 @@ LD=arm-none-eabi-ld
 MV=mv -f
 RM=rm -rf
 
-LIBNAME=screen_init
+LIBNAME=arm11
 ELFNAME=$(LIBNAME).elf
 BINNAME=$(LIBNAME).bin
 DATNAME=$(LIBNAME).dat
@@ -18,9 +18,9 @@ LIB_DIR:=lib
 DEP_DIR:=obj/$(LIBNAME)
 
 LIBS=
-CFLAGS= -g -Wall -O2 -mword-relocations\
-	-ffast-math -Wno-main -std=c99\
-	-mcpu=mpcore -mlittle-endian $(ARCH)
+CFLAGS=         	-g -Wall -O2 -mword-relocations\
+			-ffast-math -Wno-main -std=c99\
+			-mcpu=mpcore -mlittle-endian $(ARCH)
 LDFLAGS=$(LIBS)
 OCFLAGS=--set-section-flags .bss=alloc,load,contents
 
@@ -32,10 +32,10 @@ OUT_DIR= obj/$(LIBNAME)
 
 .PHONY: clean
 
-all: screen_init.bin
+all: arm11.bin
 
-screen_init.bin: $(OBJS)
-	$(CC) -nostartfiles --specs=$(LIBNAME).specs $(OBJS) $(LDFLAGS) -o $(ELFNAME)
+arm11.bin: $(OBJS)
+	$(CC) -nostartfiles --specs=../common/$(LIBNAME).specs $(OBJS) $(LDFLAGS) -o $(ELFNAME)
 	$(OC) $(OCFLAGS) -O binary $(ELFNAME) $(BINNAME)
 
 obj/%.o: source/%.c | dirs
@@ -56,4 +56,4 @@ ${OUT_DIR}:
 	mkdir -p ${OUT_DIR}
 
 clean:
-	rm -rf *.elf *.bin obj/*
+	rm -rf *.elf *.bin obj
