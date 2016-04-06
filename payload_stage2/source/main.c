@@ -9,7 +9,8 @@
 extern u8 arm11_bin[];
 extern u32 arm11_bin_size;
 
-static void ownArm11(void){
+static void ownArm11(void)
+{
     memcpy((void *)A11_PAYLOAD_LOC, arm11_bin, arm11_bin_size);
     *(vu32 *)A11_ENTRY = 1;
     *(vu32 *)0x1FFAED80 = 0xE51FF004;
@@ -18,13 +19,16 @@ static void ownArm11(void){
     while(*(vu32 *)A11_ENTRY);
 }
 
-void main(void){
+void main(void)
+{
     FATFS fs;
     FIL payload;
     unsigned int br;
 
     f_mount(&fs, "0:", 0); //This never fails due to deferred mounting
-    if(f_open(&payload, "arm9loaderhax.bin", FA_READ) == FR_OK){
+
+    if(f_open(&payload, "arm9loaderhax.bin", FA_READ) == FR_OK)
+    {
         ownArm11();
         f_read(&payload, (void *)PAYLOAD_ADDRESS, f_size(&payload), &br);
         ((void (*)())PAYLOAD_ADDRESS)();

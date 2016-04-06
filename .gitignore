@@ -1,4 +1,4 @@
-arm11/obj
+arm11/build
 out
 payload_stage1/build
 payload_stage2/build

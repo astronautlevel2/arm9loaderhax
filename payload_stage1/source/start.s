@@ -3,7 +3,7 @@
 .org 0x2B0
 .global _start
 _start:
-    @ Disable IRQ
+    @ Disable interrupts
     mrs r0, cpsr
     orr r0, r0, #0x80
     msr cpsr_c, r0
@@ -56,7 +56,4 @@ _start:
     mov r1, #0x340
     str r1, [r0]
 
-    bl main
-
-.die:
-    b .die
+    b main

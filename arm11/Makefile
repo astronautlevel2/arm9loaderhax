@@ -1,57 +1,115 @@
-export PATH	:=	$(DEVKITARM)/bin:$(PATH)
+#---------------------------------------------------------------------------------
+.SUFFIXES:
+#---------------------------------------------------------------------------------
 
-CC=arm-none-eabi-gcc
-CP=arm-none-eabi-g++
-OC=arm-none-eabi-objcopy
-LD=arm-none-eabi-ld
-MV=mv -f
-RM=rm -rf
+ifeq ($(strip $(DEVKITARM)),)
+$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
+endif
 
-LIBNAME=arm11
-ELFNAME=$(LIBNAME).elf
-BINNAME=$(LIBNAME).bin
-DATNAME=$(LIBNAME).dat
+include $(DEVKITARM)/3ds_rules
 
-SRC_DIR:=source
-OBJ_DIR:=build
+#---------------------------------------------------------------------------------
+# TARGET is the name of the output
+# BUILD is the directory where object files & intermediate files will be placed
+# SOURCES is a list of directories containing source code
+# DATA is a list of directories containing data files
+# INCLUDES is a list of directories containing header files
+# SPECS is the directory containing the important build and link files
+#---------------------------------------------------------------------------------
+export TARGET	:=	$(shell basename $(CURDIR))
+BUILD		:=	build
+SOURCES		:=	source
 
-LIBS=
-CFLAGS= -g -Wall -O2 -mword-relocations\
-	-ffast-math -Wno-main -std=c99\
-	-mcpu=mpcore -mlittle-endian $(ARCH)
-LDFLAGS=$(LIBS)
-OCFLAGS=--set-section-flags .bss=alloc,load,contents
+#---------------------------------------------------------------------------------
+# Setup some defines
+#---------------------------------------------------------------------------------
 
-OBJS:=$(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(wildcard $(SRC_DIR)/*.c))
-OBJS+=$(patsubst $(SRC_DIR)/%.s, $(OBJ_DIR)/%.o, $(wildcard $(SRC_DIR)/*.s))
-OBJS+=$(patsubst $(SRC_DIR)/%.S, $(OBJ_DIR)/%.o, $(wildcard $(SRC_DIR)/*.S))
+#---------------------------------------------------------------------------------
+# options for code generation
+#---------------------------------------------------------------------------------
+ARCH	:=	-mthumb -mthumb-interwork
 
-OUT_DIR=build
+CFLAGS	:=	-g -Wall -O2\
+			-flto -mcpu=mpcore -mlittle-endian\
+			-ffast-math -Wno-main -std=c99\
+			$(ARCH)
 
-.PHONY: clean
+CFLAGS	+=	$(INCLUDE) -DARM11
 
-all: $(LIBNAME).bin
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
-$(LIBNAME).bin: $(OBJS)
-	$(CC) -nostartfiles --specs=../common/$(LIBNAME).specs $(OBJS) $(LDFLAGS) -o $(ELFNAME)
-	$(OC) $(OCFLAGS) -O binary $(ELFNAME) $(BINNAME)
+ASFLAGS	:=	-g $(ARCH)
+LDFLAGS	=	-nostartfiles -g --specs=../../common/arm11.specs $(ARCH) -Wl,-Map,$(TARGET).map
 
-${OBJ_DIR}/%.o: source/%.c | dirs
-	@echo Compiling $<
-	$(CC) -c $(CFLAGS) $< -o $@
+#---------------------------------------------------------------------------------
+# no real need to edit anything past this point unless you need to add additional
+# rules for different file extensions
+#---------------------------------------------------------------------------------
+ifneq ($(BUILD),$(notdir $(CURDIR)))
+#---------------------------------------------------------------------------------
+ 
+export OUTPUT	:=	$(CURDIR)/$(TARGET)
 
-${OBJ_DIR}/%.o: source/%.s | dirs
-	@echo Compiling $<
-	$(CC) -c $(CFLAGS) $< -o $@
+export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
 
-${OBJ_DIR}/%.o: source/%.S | dirs
-	@echo Compiling $<
-	$(CC) -c $(CFLAGS) $< -o $@
+export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
-dirs: ${OUT_DIR}
+CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 
-${OUT_DIR}:
-	mkdir -p ${OUT_DIR}
+#---------------------------------------------------------------------------------
+# use CXX for linking C++ projects, CC for standard C
+#---------------------------------------------------------------------------------
+ifeq ($(strip $(CPPFILES)),)
+#---------------------------------------------------------------------------------
+	export LD	:=	$(CC)
+#---------------------------------------------------------------------------------
+else
+#---------------------------------------------------------------------------------
+	export LD	:=	$(CXX)
+#---------------------------------------------------------------------------------
+endif
+#---------------------------------------------------------------------------------
 
+export OFILES	:= $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+
+.PHONY: $(BUILD) clean all
+ 
+#---------------------------------------------------------------------------------
+all: $(BUILD)
+
+$(BUILD):
+	@[ -d $@ ] || mkdir -p $@
+	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+ 
+#---------------------------------------------------------------------------------
 clean:
-	rm -rf *.elf *.bin ${OUT_DIR} ${OBJ_DIR}
+	@echo clean ...
+	@rm -fr $(BUILD) $(OUTPUT).elf
+ 
+ 
+#---------------------------------------------------------------------------------
+else
+ 
+DEPENDS	:=	$(OFILES:.o=.d)
+ 
+#---------------------------------------------------------------------------------
+# main targets
+#---------------------------------------------------------------------------------
+$(OUTPUT).bin	:	$(OUTPUT).elf
+$(OUTPUT).elf	:	$(OFILES)
+
+
+#---------------------------------------------------------------------------------
+%.bin: %.elf
+	@$(OBJCOPY) -O binary $< $@
+	@echo built ... $(notdir $@)
+ 
+
+-include $(DEPENDS)
+
+ 
+#---------------------------------------------------------------------------------------
+endif
+#---------------------------------------------------------------------------------------
