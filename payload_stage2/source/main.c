@@ -1,13 +1,11 @@
 #include "types.h"
 #include "i2c.h"
 #include "fatfs/ff.h"
+#include "../build/bundled.h"
 
 #define PAYLOAD_ADDRESS 0x23F00000
 #define A11_PAYLOAD_LOC 0x1FFF4C80 //keep in mind this needs to be changed in the ld script for arm11 too
 #define A11_ENTRY       0x1FFFFFF8
-
-extern u8 arm11_bin[];
-extern u32 arm11_bin_size;
 
 static void ownArm11(void)
 {

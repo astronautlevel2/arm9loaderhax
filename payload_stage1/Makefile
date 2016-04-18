@@ -1,123 +1,47 @@
-#---------------------------------------------------------------------------------
-.SUFFIXES:
-#---------------------------------------------------------------------------------
+rwildcard = $(foreach d, $(wildcard $1*), $(filter $(subst *, %, $2), $d) $(call rwildcard, $d/, $2))
 
 ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-include $(DEVKITARM)/ds_rules
+include $(DEVKITARM)/3ds_rules
 
-#---------------------------------------------------------------------------------
-# TARGET is the name of the output
-# BUILD is the directory where object files & intermediate files will be placed
-# SOURCES is a list of directories containing source code
-# DATA is a list of directories containing data files
-# INCLUDES is a list of directories containing header files
-# SPECS is the directory containing the important build and link files
-#---------------------------------------------------------------------------------
-TARGET 		:=      $(notdir $(CURDIR))
-BUILD		:=	build
-SOURCES		:=	source
+CC := arm-none-eabi-gcc
+AS := arm-none-eabi-as
+LD := arm-none-eabi-ld
+OC := arm-none-eabi-objcopy
 
-#---------------------------------------------------------------------------------
-# Setup some defines
-#---------------------------------------------------------------------------------
+name := $(shell basename $(CURDIR))
 
-#---------------------------------------------------------------------------------
-# options for code generation
-#---------------------------------------------------------------------------------
-ARCH	:=	-mthumb -mthumb-interwork
+dir_source := source
+dir_build := build
 
-CFLAGS	:=	-g -Wall -O2\
-			-flto -march=armv5te -mtune=arm946e-s\
-			-ffast-math -Wno-main -std=c99\
-			$(ARCH)
+ASFLAGS := -mlittle-endian -mcpu=arm946e-s -march=armv5te
+CFLAGS  := -Wall -Wextra -MMD -MP -marm $(ASFLAGS) -fno-builtin -std=c11 -Wno-main -O2 -flto -ffast-math -mthumb -mthumb-interwork
+LDFLAGS := -nostdlib
 
-CFLAGS	+=	$(INCLUDE) -DARM9
+objects = $(patsubst $(dir_source)/%.s, $(dir_build)/%.o, \
+          $(patsubst $(dir_source)/%.c, $(dir_build)/%.o, \
+          $(call rwildcard, $(dir_source), *.s *.c)))
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
+.PHONY: all
+all: $(name).bin
 
-ASFLAGS	:=	-g $(ARCH) 
-LDFLAGS	=	-nostartfiles -g $(ARCH) -Wl,-Map,$(TARGET).map
-
-LDFLAGS += --specs=../../common/payload_stage1.specs
-
-#---------------------------------------------------------------------------------
-# no real need to edit anything past this point unless you need to add additional
-# rules for different file extensions
-#---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
-#---------------------------------------------------------------------------------
-
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
-
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
-
-export DEPSDIR	:=	$(CURDIR)/$(BUILD)
-
-CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-
-#---------------------------------------------------------------------------------
-# use CXX for linking C++ projects, CC for standard C
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(CPPFILES)),)
-#---------------------------------------------------------------------------------
-	export LD	:=	$(CC)
-#---------------------------------------------------------------------------------
-else
-#---------------------------------------------------------------------------------
-	export LD	:=	$(CXX)
-#---------------------------------------------------------------------------------
-endif
-#---------------------------------------------------------------------------------
-
-export OFILES	:= $(SFILES:.s=.o) $(CPPFILES:.cpp=.o) $(CFILES:.c=.o)
-
-.PHONY: $(BUILD) all clean
-
-#---------------------------------------------------------------------------------
-all: $(BUILD)
-
-$(BUILD):
-	@[ -d $@ ] || mkdir -p $@
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-		
-#---------------------------------------------------------------------------------
+.PHONY: clean
 clean:
-	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT).bin
+	@rm -rf $(dir_build)
 
-#---------------------------------------------------------------------------------
-else
+$(name).bin: $(dir_build)/$(name).elf
+	$(OC) -S -O binary $< $@
 
-DEPENDS	:=	$(OFILES:.o=.d)
+$(dir_build)/$(name).elf: $(objects)
+	$(CC) $(LDFLAGS) -T linker.ld $(OUTPUT_OPTION) $^
 
-#---------------------------------------------------------------------------------
-# main targets
-#---------------------------------------------------------------------------------
-$(OUTPUT).bin	:	$(OUTPUT).elf
-$(OUTPUT).elf	:	$(OFILES)
+$(dir_build)/%.o: $(dir_source)/%.c
+	@mkdir -p "$(@D)"
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
 
-#---------------------------------------------------------------------------------
-%.bin: %.elf
-	@$(OBJCOPY) --set-section-flags .bss=alloc,load,contents -O binary $< $@
-	@echo built ... $(notdir $@)
-	@rm -f $(OUTPUT).elf
-
-#---------------------------------------------------------------------------------
-# you need a rule like this for each extension you use as binary data
-#---------------------------------------------------------------------------------
-%.bin.o	:	%.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-
--include $(DEPENDS)
-
-
-#---------------------------------------------------------------------------------------
-endif
-#---------------------------------------------------------------------------------------
+$(dir_build)/%.o: $(dir_source)/%.s
+	@mkdir -p "$(@D)"
+	$(COMPILE.s) $(OUTPUT_OPTION) $<
+include $(call rwildcard, $(dir_build), *.d)
